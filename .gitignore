@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+package-lock.json
+npm-debug.log
+
+# .NET
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
+
+# IDE
+.idea/
+.DS_Store
+
+# Build outputs
+build/
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
