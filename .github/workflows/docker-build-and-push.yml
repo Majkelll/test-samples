@@ -10,8 +10,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  REACT_IMAGE_NAME: ${{ github.repository }}-react
-  DOTNET_IMAGE_NAME: ${{ github.repository }}-dotnet
 
 jobs:
   build-and-push:
@@ -19,6 +17,16 @@ jobs:
     permissions:
       contents: read
       packages: write
+    
+    strategy:
+      matrix:
+        app:
+          - name: react
+            context: ./react-app
+            image-suffix: react
+          - name: dotnet
+            context: ./dotnet-app
+            image-suffix: dotnet
 
     steps:
       - name: Checkout code
@@ -34,11 +42,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) - React
-        id: meta-react
+      - name: Extract metadata for ${{ matrix.app.name }}
+        id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.REACT_IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.app.image-suffix }}
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
@@ -46,40 +54,15 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
 
-      - name: Extract metadata (tags, labels) - .NET
-        id: meta-dotnet
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.DOTNET_IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
-
-      - name: Build and push React image
+      - name: Build and push ${{ matrix.app.name }} image
         uses: docker/build-push-action@v5
         with:
-          context: ./react-app
+          context: ${{ matrix.app.context }}
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta-react.outputs.tags }}
-          labels: ${{ steps.meta-react.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push .NET image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./dotnet-app
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta-dotnet.outputs.tags }}
-          labels: ${{ steps.meta-dotnet.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Image digest - React
-        run: echo "React image pushed with digest:" ${{ steps.meta-react.outputs.digest }}
-
-      - name: Image digest - .NET
-        run: echo ".NET image pushed with digest:" ${{ steps.meta-dotnet.outputs.digest }}
+      - name: Image digest - ${{ matrix.app.name }}
+        run: echo "${{ matrix.app.name }} image pushed with digest:" ${{ steps.meta.outputs.digest }}
