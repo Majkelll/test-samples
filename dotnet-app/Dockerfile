@@ -1,11 +1,18 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# Copy project file
-COPY ["dotnet-app.csproj", "./"]
+# Copy project file and NuGet source configuration
+COPY ["dotnet-app.csproj", "nuget.config", "./"]
 
-# Restore dependencies
-RUN dotnet restore "dotnet-app.csproj"
+# Authenticate the "github" NuGet source (GitHub Packages) with a token, then restore.
+# Provide the token via BuildKit secret: docker build --secret id=nuget_token,env=GITHUB_TOKEN
+RUN --mount=type=secret,id=nuget_token \
+    dotnet nuget update source github \
+      --username github-actions \
+      --password "$(cat /run/secrets/nuget_token)" \
+      --store-password-in-clear-text \
+      --configfile nuget.config && \
+    dotnet restore "dotnet-app.csproj"
 
 # Copy source code
 COPY . .

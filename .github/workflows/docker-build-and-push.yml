@@ -12,12 +12,38 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  build-and-push:
+  publish-nuget:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Pack
+        run: dotnet pack dotnet-nuget/dotnet-nuget.csproj -c Release -o ./nupkgs
+
+      - name: Push to GitHub Packages
+        run: |
+          dotnet nuget push "./nupkgs/*.nupkg" \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --api-key ${{ secrets.GITHUB_TOKEN }} \
+            --skip-duplicate
+
+  build-and-push:
+    needs: publish-nuget
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
     strategy:
       matrix:
         app:
@@ -63,6 +89,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          secrets: |
+            nuget_token=${{ secrets.GITHUB_TOKEN }}
 
       - name: Image digest - ${{ matrix.app.name }}
         run: echo "${{ matrix.app.name }} image pushed with digest:" ${{ steps.meta.outputs.digest }}

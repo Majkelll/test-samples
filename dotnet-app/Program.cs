@@ -17,6 +17,9 @@ app.UseHttpsRedirection();
 app.MapGet("/", () => "Hello World from .NET 10")
     .WithName("HelloWorld");
 
+app.MapGet("/nuget", () => Results.Json(new { version = TestSamples.NugetLib.NugetVersionInfo.Version }))
+    .WithName("NugetVersion");
+
 app.MapGet("/hc", (IConfiguration configuration) =>
 {
     // Demo/testing only: exposing runtime configuration like this is not production-ready and must not be used in prod code.
